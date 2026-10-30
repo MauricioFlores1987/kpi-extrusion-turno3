@@ -389,9 +389,53 @@ function ghConfig(){
   return { owner:c.owner||'mauricioflores1987', repo:c.repo||'kpi-extrusion-turno3', token:c.token||'' };
 }
 // saveStore: guarda copia local y marca "cambios sin publicar" (salvo opts.clean)
+// Copia local (solo en dispositivos de quien edita): comprimida, para no topar con la cuota del navegador.
+let __savePending=0, __saveChain=Promise.resolve();
+async function gzipB64(str){
+  const cs=new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+  const buf=new Uint8Array(await new Response(cs).arrayBuffer()); let bin='';
+  for(let i=0;i<buf.length;i+=0x8000) bin+=String.fromCharCode.apply(null,buf.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+async function gunzipB64(b64){
+  const bin=atob(b64), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+  return await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+function emptyStore(){ return {periods:[], encargados: JSON.parse(JSON.stringify(DEFAULT_ENCARGADOS)), lideres:{}}; }
+async function loadStoreAsync(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){ const txt=raw.startsWith('gz:')?await gunzipB64(raw.slice(3)):raw; const st=JSON.parse(txt); if(!st.lideres) st.lideres={}; return st; }
+  }catch(e){ console.error('No se pudo leer la copia local',e); }
+  return emptyStore();
+}
+// Los cortes diarios que vienen del Excel mensual no se guardan: se reconstruyen desde excelRows (filas diarias compactas).
+function serializeStore(store){
+  const ex=store.excelRows||{}, fechas={};
+  Object.keys(ex).forEach(m=>fechas[m]=new Set(ex[m].map(r=>r[0])));
+  const covered=p=>p.fuente==='excel-mensual' && fechas[String(p.desde).slice(0,7)]?.has(p.hasta);
+  return Object.assign({}, store, {periods: store.periods.filter(p=>!covered(p))});
+}
+function persistLocal(store){
+  let editor=false; try{ editor=isEditorDevice(); }catch(e){}
+  if(!editor) return;
+  __savePending++;
+  __saveChain=__saveChain.then(async()=>{
+    try{
+      const txt=JSON.stringify(serializeStore(store));
+      localStorage.setItem(STORAGE_KEY, window.CompressionStream ? 'gz:'+await gzipB64(txt) : txt);
+    }catch(e){
+      console.error('Copia local fallida',e);
+      try{ localStorage.removeItem(STORAGE_KEY); }catch(_){}
+      toast('No hay espacio local en este navegador. Publica en GitHub para no perder los cambios.');
+    }finally{ __savePending--; }
+  });
+}
+window.addEventListener('beforeunload',e=>{ if(__savePending>0){ e.preventDefault(); e.returnValue=''; } });
+// saveStore: marca «cambios sin publicar» (salvo opts.clean) y guarda copia local sin romper nunca el flujo
 function saveStore(store, opts){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   if(!(opts && opts.clean)){ const m=getMeta(); m.dirty=true; setMeta(m); }
+  persistLocal(store);
   if(typeof updatePubBar==='function') updatePubBar();
 }
 function getPin(){
@@ -1918,6 +1962,11 @@ function mergeStores(remote, local){
   Object.keys(local.bitacoraByMonth||{}).forEach(m=>{
     out.bitacoraByMonth[m] = mergeBitacora(out.bitacoraByMonth[m]||[], local.bitacoraByMonth[m]).merged;
   });
+  out.excelRows = out.excelRows || {};
+  Object.keys(local.excelRows||{}).forEach(m=>{
+    const fs=new Set(local.excelRows[m].map(x=>x[0]));
+    out.excelRows[m]=(out.excelRows[m]||[]).filter(x=>!fs.has(x[0])).concat(local.excelRows[m]);
+  });
   out.encargados = local.encargados || out.encargados;
   out.lideres = Object.assign({}, out.lideres||{}, local.lideres||{});
   return out;
@@ -1989,7 +2038,7 @@ async function ghGetFile(c){
   return {exists:true, sha:j.sha, data:JSON.parse(text)};
 }
 function downloadBackup(){
-  const blob=new Blob([JSON.stringify(state.store)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify(serializeStore(state.store))],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download=`respaldo_KPI_${new Date().toISOString().slice(0,10)}.json`; a.style.display='none';
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
@@ -2010,7 +2059,7 @@ function openRestoreModal(){
       const j=JSON.parse(await f.text());
       if(!j||!Array.isArray(j.periods)) throw new Error('El archivo no parece un respaldo de esta app.');
       j.bitacoraByMonth=j.bitacoraByMonth||{}; j.encargados=j.encargados||state.store.encargados; j.lideres=j.lideres||{};
-      state.store=mergeStores(j,{periods:state.store.periods,bitacoraByMonth:state.store.bitacoraByMonth||{},encargados:state.store.encargados,lideres:state.store.lideres||{}});
+      state.store=mergeStores(j,{periods:state.store.periods,bitacoraByMonth:state.store.bitacoraByMonth||{},excelRows:state.store.excelRows||{},encargados:state.store.encargados,lideres:state.store.lideres||{}}); hydrateStore(state.store);
       const l=latestPeriod(state.store); state.activeMonth=l?periodMonth(l):null; state.periodId=l?.id||null;
       saveStore(state.store); closeModal(); render(); toast(`Respaldo restaurado: ${state.store.periods.length} periodo(s)`);
     }catch(e){ msg.style.color='var(--bad)'; msg.textContent='✗ '+e.message; }
@@ -2028,10 +2077,10 @@ async function publishToGithub(){
       const f=await ghGetFile(c);
       const meta=getMeta();
       let toPublish=state.store, merged=false;
-      if(f.exists && (f.data.rev||0)!==(meta.baseRev||0)){ toPublish=mergeStores(f.data,state.store); merged=true; }
+      if(f.exists && (f.data.rev||0)!==(meta.baseRev||0)){ toPublish=mergeStores(f.data,state.store); hydrateStore(toPublish); merged=true; }
       toPublish.rev=(f.exists?(f.data.rev||0):0)+1;
       toPublish.updatedAt=new Date().toISOString();
-      const body={message:`Actualización KPI (versión ${toPublish.rev})`,content:b64encodeUtf8(JSON.stringify(toPublish))};
+      const body={message:`Actualización KPI (versión ${toPublish.rev})`,content:b64encodeUtf8(JSON.stringify(serializeStore(toPublish)))};
       if(f.exists) body.sha=f.sha;
       const r=await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/data.json`,{method:'PUT',headers:{Authorization:`Bearer ${c.token}`,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
       if(r.status===409||r.status===422){ lastErr=new Error('Conflicto al guardar, reintentando'); continue; }
@@ -2128,42 +2177,46 @@ async function xlsxReadSheet(buf, sheetName, wantCols){
 }
 function excelSerialToISO(n){ const d=new Date(Date.UTC(1899,11,30)+Math.floor(n)*86400000); return d.toISOString().slice(0,10); }
 
-// Construye cortes diarios acumulados por mes + bitácora a partir de las filas de «Datos»
-function buildFromDatos(rows){
+// Extrae de «Datos»: filas diarias COMPACTAS por mes (se guardan) + bitácora
+function extractDatos(rows){
   const maqNave={}; Object.keys(NAVES).forEach(n=>NAVES[n].forEach(m=>maqNave[m]=n));
   const CC=['AM','AN','AO','AP','AQ','AR','AS'];
   const stats={filas:0, dias:0, maqDesconocidas:{}, sinFecha:0, meses:{}};
-  const data=[]; const bit=[];
+  const daily={}, bit=[]; const r2=x=>Math.round(x*100)/100;
   rows.forEach(r=>{
     const maq=typeof r.B==='string'?r.B.trim():''; if(!maq) return;
     if(typeof r.A!=='number'){ if(!/^fecha$/i.test(String(r.A||'').trim())) stats.sinFecha++; return; }
-    const fecha=excelSerialToISO(r.A), turno=String(r.BL||'').trim();
-    if(!TURNOS.includes(turno)) return;
+    const fecha=excelSerialToISO(r.A), turno=String(r.BL||'').trim(), ti=TURNOS.indexOf(turno);
+    if(ti<0) return;
     if(!maqNave[maq]){ stats.maqDesconocidas[maq]=(stats.maqDesconocidas[maq]||0)+1; return; }
     const n=x=>(typeof x==='number'&&isFinite(x))?x:0;
     stats.filas++;
-    data.push({fecha,turno,maq,prod:n(r.R),std:n(r.S),scrap:n(r.U)+n(r.V)+n(r.W),over:n(r.AF),causas:CC.map(c=>n(r[c]))});
+    (daily[fecha.slice(0,7)]=daily[fecha.slice(0,7)]||[]).push([fecha,ti,maq,r2(n(r.R)),r2(n(r.S)),r2(n(r.U)+n(r.V)+n(r.W)),r2(n(r.AF)),...CC.map(c=>r2(n(r[c])))]);
     const obs=typeof r.BK==='string'?r.BK.trim():'';
     if(obs) bit.push({fecha,maquina:maq,horario:String(r.C||'').trim(),codigo:r.D==null?'':String(r.D).trim(),producto:String(r.E||'').trim(),observacion:obs,turno,nave:maqNave[maq]});
   });
-  data.sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  const byMonth={}; data.forEach(d=>{ (byMonth[d.fecha.slice(0,7)]=byMonth[d.fecha.slice(0,7)]||[]).push(d); });
+  Object.keys(daily).forEach(m=>{ daily[m].sort((a,b)=>a[0].localeCompare(b[0])); stats.meses[m]=new Set(daily[m].map(x=>x[0])).size; });
+  return {daily, bit, stats};
+}
+// Cortes diarios acumulados (mismo formato de siempre) a partir de las filas diarias compactas
+function periodsFromDaily(daily, onlyMonths){
+  const maqNave={}; Object.keys(NAVES).forEach(n=>NAVES[n].forEach(m=>maqNave[m]=n));
   const periods=[];
-  Object.keys(byMonth).sort().forEach(mes=>{
-    const acc={}; TURNOS.forEach(t=>{ acc[t]={}; Object.keys(maqNave).forEach(m=>acc[t][m]={prod:0,std:0,scrap:0,over:0,causas:CC.map(()=>0)}); });
-    const list=byMonth[mes]; const fechas=[...new Set(list.map(d=>d.fecha))]; stats.meses[mes]=fechas.length;
-    let i=0;
+  (onlyMonths||Object.keys(daily)).sort().forEach(mes=>{
+    const list=(daily[mes]||[]).slice().sort((a,b)=>a[0].localeCompare(b[0]));
+    const acc={}; TURNOS.forEach((t,ti)=>{ acc[ti]={}; Object.keys(maqNave).forEach(m=>acc[ti][m]={prod:0,std:0,scrap:0,over:0,causas:[0,0,0,0,0,0,0]}); });
+    const fechas=[...new Set(list.map(d=>d[0]))]; let i=0;
     fechas.forEach(f=>{
-      while(i<list.length && list[i].fecha<=f){ const d=list[i++], a=acc[d.turno][d.maq]; a.prod+=d.prod; a.std+=d.std; a.scrap+=d.scrap; a.over+=d.over; d.causas.forEach((v,k)=>a.causas[k]+=v); }
+      while(i<list.length && list[i][0]<=f){ const d=list[i++], a=acc[d[1]][d[2]]; if(!a) continue; a.prod+=d[3]; a.std+=d[4]; a.scrap+=d[5]; a.over+=d[6]; for(let k=0;k<7;k++) a.causas[k]+=d[7+k]||0; }
       const turnos={};
-      TURNOS.forEach(turno=>{
+      TURNOS.forEach((turno,ti)=>{
         const sh=newRealShift(); sh.jefePlanta=JEFES_PLANTA[turno]; let overT=0;
         Object.keys(NAVES).forEach(naveName=>{
           const nave=sh.naves[naveName]; let sobSum=0;
           const enc=state.store.encargados?.[turno]?.[naveName];
           nave.encargado=(enc && !/por definir/i.test(enc))?enc:DEFAULT_ENCARGADOS[turno][naveName];
           nave.maquinas.forEach(mq=>{
-            const a=acc[turno][mq.maquina];
+            const a=acc[ti][mq.maquina];
             mq.prod=Math.round(a.prod*100)/100; mq.std=Math.round(a.std*100)/100; mq.scrap=Math.round(a.scrap*100)/100;
             mq.sobrepeso=a.prod?a.over/a.prod:0;
             CAUSAS.forEach((c,k)=>mq.causas[c.code]=Math.round(a.causas[k]*100)/100);
@@ -2184,15 +2237,29 @@ function buildFromDatos(rows){
       periods.push({id:`${mes}-01_${f}`,desde:`${mes}-01`,hasta:f,importedAt:new Date().toISOString(),turnos,bitacora:[],demo:false,real:true,fuente:'excel-mensual'});
     });
   });
-  stats.dias=periods.length;
-  return {periods, bit, stats};
+  return periods;
+}
+// Reconstruye los cortes derivados del Excel (al abrir la app). Un corte pegado a mano con el mismo id tiene prioridad.
+function hydrateStore(store){
+  const ex=store.excelRows; if(!ex||!Object.keys(ex).length) return;
+  periodsFromDaily(ex).forEach(p=>{
+    const cur=store.periods.find(x=>x.id===p.id);
+    if(!cur || cur.fuente==='excel-mensual') upsertPeriod(store,p);
+  });
 }
 async function importMonthFile(file){
   const buf=await file.arrayBuffer();
   const rows=await xlsxReadSheet(buf,'Datos',['A','B','C','D','E','R','S','U','V','W','AF','AM','AN','AO','AP','AQ','AR','AS','BK','BL']);
-  const r=buildFromDatos(rows);
-  if(!r.periods.length) throw new Error('No se encontraron filas con fecha, máquina y turno en la hoja «Datos».');
-  r.periods.forEach(p=>upsertPeriod(state.store,p));
+  const r=extractDatos(rows);
+  const meses=Object.keys(r.daily);
+  if(!meses.length) throw new Error('No se encontraron filas con fecha, máquina y turno en la hoja «Datos».');
+  if(!state.store.excelRows) state.store.excelRows={};
+  meses.forEach(m=>{
+    const fechas=new Set(r.daily[m].map(x=>x[0]));
+    state.store.excelRows[m]=(state.store.excelRows[m]||[]).filter(x=>!fechas.has(x[0])).concat(r.daily[m]);
+  });
+  state.store.periods=state.store.periods.filter(p=>!(p.fuente==='excel-mensual' && meses.includes(String(p.desde).slice(0,7))));
+  periodsFromDaily(state.store.excelRows,meses).forEach(p=>upsertPeriod(state.store,p));
   if(!state.store.bitacoraByMonth) state.store.bitacoraByMonth={};
   const info={nuevas:0,actualizadas:0,iguales:0}; const porMes={};
   r.bit.forEach(e=>{ (porMes[e.fecha.slice(0,7)]=porMes[e.fecha.slice(0,7)]||[]).push(e); });
@@ -2340,33 +2407,33 @@ async function boot(){
   window.__READONLY__=!isEditorDevice();
   const remote=await fetchRemoteData();
   const cfg=ghConfig(), meta=getMeta();
-  const hasLocal=!!localStorage.getItem(STORAGE_KEY);
+  const hasLocal=localStorage.getItem(STORAGE_KEY)!==null;
   const isEditor=!!cfg.token;
   let useLocal=false;
   if(hasLocal && isEditor){
     if(meta.dirty) useLocal=true;                                   // cambios propios sin publicar
-    else if(remote && (meta.baseRev||0) > (remote.rev||0)) useLocal=true; // GitHub Pages aún no refleja mi última publicación
+    else if(remote && (meta.baseRev||0) > (remote.rev||0)) useLocal=true; // Pages aún no refleja mi última publicación
   }
   if(!remote && hasLocal) useLocal=true;                            // sin data.json publicado: lo local es lo único que hay
-  if(useLocal && !remote){
-    try{ const t=loadStore(); if(!t.periods.length){ const sd=await buildCachedSeptemberPeriods(); if(sd.periods.length){ localStorage.setItem(STORAGE_KEY,JSON.stringify(sd)); } } }catch(e){}
-  }
+  let st;
   if(useLocal){
-    state.store=loadStore();
+    st=await loadStoreAsync();
     if(!remote && meta.dirty===undefined){ meta.dirty=true; setMeta(meta); }
-    if(normalizeBitacoraStore(state.store)) saveStore(state.store);
+    if(!st.periods.length && !remote){
+      try{ const sd=await buildCachedSeptemberPeriods(); if(sd.periods.length) st=sd; }catch(e){}
+    }
   } else if(remote){
-    state.store=remote;
-    normalizeBitacoraStore(state.store);
-    saveStore(state.store,{clean:true});
+    st=remote;
     setMeta({dirty:false, baseRev:remote.rev||0});
   } else {
-    try{ state.store=await buildCachedSeptemberPeriods(); }
-    catch(e){ state.store={periods:[],bitacoraByMonth:{},encargados:JSON.parse(JSON.stringify(DEFAULT_ENCARGADOS)),lideres:{}}; }
-    saveStore(state.store,{clean:true});
+    try{ st=await buildCachedSeptemberPeriods(); }
+    catch(e){ st={periods:[],bitacoraByMonth:{},encargados:JSON.parse(JSON.stringify(DEFAULT_ENCARGADOS)),lideres:{}}; }
   }
+  state.store=st;
   if(!state.store.encargados) state.store.encargados=JSON.parse(JSON.stringify(DEFAULT_ENCARGADOS));
   if(!state.store.lideres) state.store.lideres={};
+  hydrateStore(state.store);
+  if(normalizeBitacoraStore(state.store)) saveStore(state.store);
   const latest=latestPeriod(state.store);
   state.activeMonth=latest?periodMonth(latest):null;
   state.periodId=latest?.id||null;
