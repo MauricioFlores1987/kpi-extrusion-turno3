@@ -9,8 +9,8 @@
   --navy:#2A2670; --navy-dark:#1B1850; --navy-tint:#EEEDF8;
   --yellow:#F5E202; --ink:#1A1745; --muted:#6B6E85;
   --bg:#F5F5FA; --card:#FFFFFF;
-  --ok:#178A4C; --ok-bg:#E8F7EE;
-  --warn:#B8860B; --warn-bg:#FDF6DE;
+  --ok:#12703B; --ok-bg:#E8F7EE;
+  --warn:#8A6200; --warn-bg:#FDF6DE;
   --bad:#C0392B; --bad-bg:#FBEAE8;
   --line:#E4E3F0; --radius:16px;
   --c-pr:#2A2670; --c-mp:#25829A; --c-mt:#8B7FD6; --c-mn:#C0392B;
@@ -72,6 +72,7 @@ button{font-family:inherit;}
 .section-head .hint{font-size:11.5px;color:var(--muted);}
 .card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 2px 8px rgba(27,52,46,.045);border:1px solid var(--line);}
 .card + .card{margin-top:10px;}
+[style*="display:grid"] > .card + .card{margin-top:0;}
 .kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .kpi-card{background:var(--card);border-radius:9px;padding:16px;border:1px solid var(--line);border-top:3px solid var(--navy);}
 .kpi-card .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px;}
@@ -176,11 +177,8 @@ textarea{width:100%;min-height:160px;border:1px solid var(--line);border-radius:
   .kpi-card{padding:18px;}
   .kpi-card .val{font-size:26px;}
   [data-view="planta"] .view-content{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:22px;align-items:start;}
-  [data-view="planta"] .content > .section:nth-of-type(1),
-  [data-view="planta"] .content > .section:nth-of-type(2),
-  [data-view="planta"] .content > .section:nth-of-type(5){grid-column:1 / -1;}
-  [data-view="planta"] .content > .section:nth-of-type(3),
-  [data-view="planta"] .content > .section:nth-of-type(4){grid-column:span 6;}
+  [data-view="planta"] .view-content > .section{grid-column:1 / -1;}
+  [data-view="planta"] .view-content > .section.half{grid-column:span 6;}
   [data-view^="Turno"] .view-content{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:22px;align-items:start;}
   [data-view^="Turno"] .content > .section:nth-of-type(1),
   [data-view^="Turno"] .content > .section:nth-of-type(2),
@@ -242,6 +240,52 @@ button:disabled{opacity:.58;cursor:wait;}
   .brand-logo{height:27px;max-height:27px;}
   .brand .t2{font-size:14px;}
 }
+
+/* ===== Alternativa A: visualización, accesibilidad ===== */
+:root{--grid:#E8E7F1;--axis:#C9C8D8;--viz-muted:#6B6E85;--viz-secondary:#3F4160;--cell-empty:#ECECF3;}
+:focus-visible{outline:3px solid var(--navy);outline-offset:2px;border-radius:4px;}
+.header :focus-visible,.header button:focus-visible{outline-color:var(--yellow);}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;}
+.seg button{border:0;background:transparent;padding:7px 12px;font:600 12px/1 inherit;color:var(--ink);cursor:pointer;min-height:34px;}
+.seg button+button{border-left:1px solid var(--line);}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff;}
+.seg button:hover:not([aria-pressed="true"]){background:var(--navy-tint);}
+.viz-head{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.viz-title{display:none;}
+.viz-tip{font-family:"Aptos","Segoe UI Variable","Segoe UI",system-ui,sans-serif;color:var(--ink);}
+.viz-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.viz-ctrls{display:flex;flex-wrap:wrap;gap:8px;}
+.iv-wrap{position:relative;}
+svg.iv{width:100%;height:auto;display:block;touch-action:pan-y;border-radius:8px;}
+.viz-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--viz-secondary);margin-bottom:6px;}
+.viz-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle;}
+.viz-note{font-size:12px;color:var(--ink);margin-top:10px;padding:9px 12px;background:var(--navy-tint);border-radius:8px;line-height:1.5;}
+.viz-table{margin-top:10px;font-size:12px;}
+.viz-table summary{cursor:pointer;color:var(--navy);font-weight:700;min-height:28px;}
+.tbl-wrap{overflow:auto;max-height:280px;margin-top:6px;border:1px solid var(--line);border-radius:8px;}
+.viz-table table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;}
+.viz-table th,.viz-table td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;}
+.viz-table th:first-child,.viz-table td:first-child{text-align:left;position:sticky;left:0;background:#fff;}
+.viz-table thead th{position:sticky;top:0;background:var(--navy-tint);}
+.viz-tip{position:fixed;z-index:100;pointer-events:none;opacity:0;background:#fff;border:1px solid var(--line);box-shadow:0 8px 24px rgba(27,24,80,.2);border-radius:10px;padding:8px 11px;font-size:12px;max-width:260px;transition:opacity .08s;}
+.vt-title{font-weight:700;color:var(--ink);margin-bottom:4px;}
+.vt-row{display:flex;gap:7px;align-items:center;line-height:1.5;}
+.vt-row i{display:inline-block;width:14px;height:3px;border-radius:2px;}
+.vt-row b{font-size:13px;color:var(--ink);}
+.vt-row span{color:var(--muted);}
+.hm-scroll{overflow-x:auto;padding-bottom:4px;}
+svg.hm{display:block;}
+.hm-cell{cursor:default;}
+.hm-cell:hover{stroke:var(--ink);stroke-width:1.5;}
+.hm-legend{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--viz-secondary);margin-top:10px;}
+.hm-bar{display:inline-block;width:160px;height:10px;border-radius:5px;background:linear-gradient(90deg,rgb(227,73,72),rgb(240,239,236),rgb(42,120,214));}
+.hm-none{margin-left:auto;}
+.hm-none i{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--cell-empty);margin-right:6px;vertical-align:-2px;border:1px solid var(--axis);}
+.spark-row{margin-top:6px;height:28px;}
+.spark{display:block;}
+.foot-note{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5;}
+@media (pointer:coarse){.tab-btn,.seg button,.edit-toggle{min-height:44px;}}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important;scroll-behavior:auto !important;}}
 </style>
 </head>
 <body>
@@ -516,7 +560,7 @@ function paretoChart(causas, opts={}){
 function impactoTexto(minutos, stdKg){
   if(!minutos) return '';
   const horas = minutos/60;
-  if(window.__REAL_SEPTEMBER__) return `${horas.toFixed(1)} h perdidas; kilos no estimados porque el reporte no aporta horas efectivas programadas`;
+  if(window.__REAL_SEPTEMBER__) return `${horas.toFixed(1)} h perdidas`;
   const kg = impactKg(minutos, stdKg);
   return `≈ ${horas.toFixed(1)} h · ≈ ${fmtInt(kg)} kg no producidos (estimado)`;
 }
@@ -890,15 +934,17 @@ function plantaHTML(cur){
   const prev = prevPeriod(); const agPrev = prev ? plantaAgg(prev) : null;
   const trendPts = visiblePeriods().map(p=>({label:fmtDate(p.hasta), value: plantaAgg(p).eficiencia}));
   const insights = insightsPlanta(cur, prev);
+  state.ds = dailySeries(visiblePeriods());
+  const sp = m=>spark(state.ds.map(r=>r.bad?null:dsValue(dsSum(r.turnos,TURNOS),m)),'#2A2670');
 
   return `
   <div class="section">
     <div class="section-head"><h2>Resumen de planta</h2></div>
     <div class="kpi-grid">
-      <div class="kpi-card"><div class="lbl">Kilos producidos</div><div class="val">${fmtInt(ag.kilos)}</div><div class="sub" style="color:var(--muted);">STD: ${fmtInt(ag.std)}</div></div>
-      <div class="kpi-card"><div class="lbl">Eficiencia</div><div class="val">${fmtPct(ag.eficiencia)}</div><div class="sub"><span class="pill ${pillClass(ag.eficiencia)}">meta ${fmtPct0(META_EFICIENCIA)}</span></div></div>
-      <div class="kpi-card"><div class="lbl">Scrap</div><div class="val">${fmtPct(ag.scrapPct)}</div><div class="sub"><span class="pill ${pillClassInv(ag.scrapPct,META_SCRAP)}">meta ${fmtPct0(META_SCRAP)}</span></div></div>
-      <div class="kpi-card"><div class="lbl">Sobrepeso</div><div class="val">${fmtPct(avgSobrepeso(cur))}</div><div class="sub"><span class="pill ${pillClassSobrepeso(avgSobrepeso(cur))}">meta 0%</span></div></div>
+      <div class="kpi-card"><div class="lbl">Kilos producidos</div><div class="val">${fmtInt(ag.kilos)}</div><div class="sub" style="color:var(--muted);">STD: ${fmtInt(ag.std)}</div><div class="spark-row">${sp('kilos')}</div></div>
+      <div class="kpi-card"><div class="lbl">Eficiencia</div><div class="val">${fmtPct(ag.eficiencia)}</div><div class="sub"><span class="pill ${pillClass(ag.eficiencia)}">meta ${fmtPct0(META_EFICIENCIA)}</span></div><div class="spark-row">${sp('efic')}</div></div>
+      <div class="kpi-card"><div class="lbl">Scrap</div><div class="val">${fmtPct(ag.scrapPct)}</div><div class="sub"><span class="pill ${pillClassInv(ag.scrapPct,META_SCRAP)}">meta ${fmtPct0(META_SCRAP)}</span></div><div class="spark-row">${sp('scrap')}</div></div>
+      <div class="kpi-card"><div class="lbl">Sobrepeso</div><div class="val">${fmtPct(avgSobrepeso(cur))}</div><div class="sub"><span class="pill ${pillClassSobrepeso(avgSobrepeso(cur))}">meta 0%</span></div><div class="spark-row">${sp('sobre')}</div></div>
     </div>
     ${agPrev ? `<div class="card" style="margin-top:10px;">
       ${comparisonRow('Eficiencia', ag.eficiencia, agPrev.eficiencia, META_EFICIENCIA, true)}
@@ -908,24 +954,34 @@ function plantaHTML(cur){
   </div>
 
   <div class="section">
+    <div class="section-head"><h2>Evolución diaria</h2><span class="hint">pasa el cursor o usa las flechas</span></div>
+    <div class="card" id="dailyCard">${dailyCardHTML()}</div>
+  </div>
+
+  <div class="section">
     <div class="section-head"><h2>Eficiencia por turno</h2></div>
     <div class="turno-summary">
       ${TURNOS.map(t=>{ const e=safeEff(cur.turnos[t].kilos,cur.turnos[t].std); return `<div class="tcard"><div class="t">${t}</div><div class="e">${semSpan(fmtPct(e),pillClass(e))}</div><div class="pill ${pillClass(e)}" style="margin-top:4px;">${cur.turnos[t].jefePlanta}</div></div>`; }).join('')}
     </div>
   </div>
 
-  <div class="section">
+  <div class="section half">
     <div class="section-head"><h2>Hallazgos</h2><span class="hint">automático · criterio 80/20</span></div>
     ${insights.map(i=>`<div class="insight"><div class="ic">${i.icon}</div><div>${i.text}</div></div>`).join('')}
   </div>
 
-  <div class="section">
+  <div class="section half">
     <div class="section-head"><h2>Causas de ineficiencia — planta</h2><span class="hint">minutos perdidos</span></div>
     <div class="card">${paretoChart(ag.causas)}</div>
   </div>
 
   <div class="section">
-    <div class="section-head"><h2>Tendencia — eficiencia de planta</h2></div>
+    <div class="section-head"><h2>Mapa de calor — dónde se pierde eficiencia</h2><span class="hint">máquina × día</span></div>
+    <div class="card" id="heatCard">${heatCardHTML()}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2>Tendencia acumulada del mes</h2><span class="hint">control · bandas de meta</span></div>
     ${responsiveTrendChart(trendPts)}
   </div>`;
 }
@@ -1095,6 +1151,7 @@ function ejecutivoHTML(cur){
       </tr>`).join('')}
     </table>
 
+    ${window.__REAL_SEPTEMBER__?'<div class="foot-note">Los kilos no producidos no se estiman: el reporte no entrega las horas efectivas programadas, por eso se informan solo las horas perdidas.</div>':''}
     <div style="font-size:12px;font-weight:700;margin:16px 0 6px;">Máquinas con brechas recurrentes (${window.__REAL_SEPTEMBER__?'días del mes':'todo el histórico'})</div>
     <table class="mtable">
       <tr><th style="text-align:left;">Máquina</th><th>${window.__REAL_SEPTEMBER__?'Días en alerta':'Naves/Periodos en alerta'}</th><th>Scrap acum.</th><th>Minutos causas acum.</th></tr>
@@ -2307,6 +2364,201 @@ function openMonthFileModal(){
 }
 
 /* ============================================================
+   VISUALIZACIÓN DIARIA (alternativa A): evolución diaria, mapa de calor, minigráficos
+   Valores del día = diferencia entre cortes acumulados consecutivos del mismo mes.
+   Paleta: turnos = slots 1-3 validados (azul, naranja, aqua); polaridad = azul↔rojo con gris neutro.
+   ============================================================ */
+const VIZ_COL = {'Turno 1':'#2a78d6','Turno 2':'#eb6834','Turno 3':'#1baf7a'};
+function V(){ return state.viz || (state.viz={metric:'efic',mode:'planta',hmMetric:'efic',hmTurno:'all'}); }
+const VIZ_METRICS = {
+  efic:{label:'Eficiencia', meta:()=>META_EFICIENCIA, better:'up',   fmt:fmtPct, pts:true},
+  scrap:{label:'Scrap',     meta:()=>META_SCRAP,      better:'down', fmt:fmtPct, pts:true},
+  sobre:{label:'Sobrepeso', meta:()=>META_SOBREPESO,  better:'down', fmt:fmtPct, pts:true},
+  kilos:{label:'Kilos',     meta:()=>null,            better:'up',   fmt:fmtInt, pts:false},
+};
+function dailySeries(periods){
+  const ps=periods.slice().sort((a,b)=>a.hasta.localeCompare(b.hasta)); const out=[]; let prev=null; const num=x=>+x||0;
+  const snap=p=>{ const s={turnos:{},mq:{}};
+    TURNOS.forEach(t=>{ const T=p.turnos&&p.turnos[t]; if(!T){ s.turnos[t]={k:0,s:0,sc:0,o:0}; return; }
+      s.turnos[t]={k:num(T.kilos),s:num(T.std),sc:num(T.scrap),o:num(T.sobrepeso)*num(T.kilos)};
+      Object.values(T.naves||{}).forEach(n=>(n.maquinas||[]).forEach(m=>{ (s.mq[m.maquina]=s.mq[m.maquina]||{})[t]={k:num(m.prod),s:num(m.std),sc:num(m.scrap)}; })); });
+    return s; };
+  const Z={k:0,s:0,sc:0,o:0};
+  ps.forEach(p=>{
+    const cur=snap(p); const cumul=!!(prev && prev.p.desde===p.desde && prev.p.hasta<p.hasta);
+    const row={fecha:p.hasta, desde:cumul?prev.p.hasta:p.desde, cumul, turnos:{}, mq:{}, bad:false};
+    TURNOS.forEach(t=>{ const c=cur.turnos[t], b=cumul?prev.s.turnos[t]:Z; const d={k:c.k-b.k,s:c.s-b.s,sc:c.sc-b.sc,o:c.o-b.o};
+      if(d.k<-1||d.s<-1||d.sc<-1) row.bad=true; row.turnos[t]=d; });
+    Object.keys(cur.mq).forEach(m=>{ row.mq[m]={}; TURNOS.forEach(t=>{ const c=(cur.mq[m]||{})[t]||Z, b=cumul?(((prev.s.mq[m]||{})[t])||Z):Z; row.mq[m][t]={k:c.k-b.k,s:c.s-b.s,sc:c.sc-b.sc}; }); });
+    out.push(row); prev={p,s:cur};
+  });
+  return out;
+}
+function dsSum(o, turnos){ const a={k:0,s:0,sc:0,o:0}; turnos.forEach(t=>{ const d=o[t]; if(d){ a.k+=d.k; a.s+=d.s; a.sc+=d.sc; a.o+=d.o||0; } }); return a; }
+function dsValue(a, metric){
+  if(metric==='kilos') return a.k>0?a.k:null;
+  if(metric==='efic') return a.s>0?a.k/a.s:null;
+  if(metric==='scrap') return a.k>0?a.sc/a.k:null;
+  if(metric==='sobre') return a.k>0?a.o/a.k:null;
+  return null;
+}
+const MESES_C=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function dayLabel(iso){ const [y,m,d]=iso.split('-'); return `${+d} ${MESES_C[+m-1]}`; }
+function dayNum(iso){ return +iso.slice(8,10); }
+function rowRangeLabel(r){ return (r.cumul && r.desde<r.fecha && daysBetween(r.desde,r.fecha)>1) ? `${dayLabel(addDays(r.desde,1))} – ${dayLabel(r.fecha)}` : dayLabel(r.fecha); }
+function daysBetween(a,b){ return Math.round((Date.parse(b)-Date.parse(a))/86400000); }
+function addDays(iso,n){ return new Date(Date.parse(iso)+n*86400000).toISOString().slice(0,10); }
+function niceTicks(min,max,n){
+  const span=max-min||1, raw=span/n, mag=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/mag;
+  const step=(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*mag; const out=[];
+  for(let v=Math.ceil(min/step)*step; v<=max+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+// ---------- línea interactiva ----------
+window.__iv = window.__iv || {};
+function ivLine(id, cfg){
+  // cfg: {rows:[{x:iso,label,vals:{serieKey:valor|null}}], series:[{key,name,color}], fmt, meta:{v,label}|null, pct:bool}
+  const mob=innerWidth<640, rows=cfg.rows, W=mob?380:1000, H=mob?250:280, padL=mob?42:52, padR=cfg.series.length>1?(mob?58:84):(mob?14:24), padT=18, padB=30;
+  const all=[]; rows.forEach(r=>cfg.series.forEach(s=>{ const v=r.vals[s.key]; if(v!=null) all.push(v); }));
+  if(rows.length<2 || !all.length) return `<div class="trend-empty">Se necesitan al menos 2 cortes con datos en el mes para mostrar la evolución diaria.</div>`;
+  let lo=Math.min(...all), hi=Math.max(...all); if(cfg.meta){ lo=Math.min(lo,cfg.meta.v); hi=Math.max(hi,cfg.meta.v); }
+  const pad=(hi-lo||Math.abs(hi)||1)*0.12; lo-=pad; hi+=pad; if(!cfg.negOk && lo<0 && Math.min(...all)>=0) lo=0;
+  const ticks=niceTicks(lo,hi,5);
+  const t0=Date.parse(rows[0].x), t1=Date.parse(rows[rows.length-1].x), span=(t1-t0)||1;
+  const X=r=>padL+(W-padL-padR)*((Date.parse(r.x)-t0)/span), Y=v=>padT+(H-padT-padB)*(1-(v-lo)/(hi-lo));
+  const fy=v=>cfg.pct?`${(v*100).toFixed(0)}%`:fmtInt(v);
+  let g=ticks.map(v=>`<line x1="${padL}" x2="${W-padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--grid)" stroke-width="1"/><text x="${padL-8}" y="${(Y(v)+3.5).toFixed(1)}" font-size="11" fill="var(--viz-muted)" text-anchor="end">${fy(v)}</text>`).join('');
+  const every=Math.max(1,Math.ceil(rows.length/(mob?6:10)));
+  g+=rows.map((r,i)=>(i%every===0||i===rows.length-1)?`<text x="${X(r).toFixed(1)}" y="${H-8}" font-size="11" fill="var(--viz-muted)" text-anchor="middle">${dayNum(r.x)}</text>`:'').join('');
+  g+=`<line x1="${padL}" x2="${W-padR}" y1="${Y(lo+pad*0.0).toFixed(1)}" y2="${Y(lo).toFixed(1)}" stroke="var(--axis)"/>`;
+  if(cfg.meta){ const my=Y(cfg.meta.v).toFixed(1); g+=`<line x1="${padL}" x2="${W-padR}" y1="${my}" y2="${my}" stroke="var(--viz-secondary)" stroke-width="1.5" opacity=".55"/><text x="${padL+6}" y="${(my-6)}" font-size="11" font-weight="700" fill="var(--viz-secondary)" stroke="var(--card)" stroke-width="3" paint-order="stroke">${esc(cfg.meta.label)}</text>`; }
+  let lines='', ends='';
+  cfg.series.forEach(s=>{
+    let d='', pen=false; rows.forEach(r=>{ const v=r.vals[s.key]; if(v==null){ pen=false; return; } d+=`${pen?'L':'M'}${X(r).toFixed(1)},${Y(v).toFixed(1)} `; pen=true; });
+    lines+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    for(let i=rows.length-1;i>=0;i--){ const v=rows[i].vals[s.key]; if(v!=null){
+      ends+=`<circle cx="${X(rows[i]).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4.5" fill="${s.color}" stroke="var(--card)" stroke-width="2"/>`;
+      if(cfg.series.length>1) ends+=`<text x="${(X(rows[i])+10).toFixed(1)}" y="${(Y(v)+4).toFixed(1)}" font-size="${mob?10.5:11.5}" font-weight="700" fill="var(--viz-secondary)">${esc(mob?s.name.replace("Turno ","T"):s.name)}</text>`;
+      break; } }
+  });
+  const reg={W,H,padT,padB,xs:rows.map(X),ys:rows.map(r=>cfg.series.map(s=>r.vals[s.key]==null?null:Y(r.vals[s.key]))),
+    items:rows.map(r=>({title:r.tip||r.label,rows:cfg.series.map(s=>({name:s.name,color:s.color,text:r.vals[s.key]==null?'sin dato':cfg.fmt(r.vals[s.key])}))})),colors:cfg.series.map(s=>s.color)};
+  window.__iv[id]=reg;
+  const table=`<details class="viz-table"><summary>Ver tabla de datos</summary><div class="tbl-wrap"><table><thead><tr><th>Día</th>${cfg.series.map(s=>`<th>${esc(s.name)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.tip||r.label)}</td>${cfg.series.map(s=>`<td>${r.vals[s.key]==null?'—':cfg.fmt(r.vals[s.key])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
+  const legend=cfg.series.length>1?`<div class="viz-legend">${cfg.series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('')}</div>`:'';
+  return `${legend}<div class="iv-wrap"><svg class="iv" data-iv="${id}" viewBox="0 0 ${W} ${H}" role="img" tabindex="0" aria-label="${esc(cfg.aria)}. Usa las flechas izquierda y derecha para recorrer los días.">${g}<line class="iv-x" y1="${padT}" y2="${H-padB}" stroke="var(--viz-secondary)" stroke-width="1" opacity="0" />${lines}${ends}<g class="iv-dots"></g></svg></div>${table}`;
+}
+function segHTML(attr, current, items){
+  return `<div class="seg" role="group">${items.map(([k,l])=>`<button type="button" data-viz="${attr}" data-val="${k}" aria-pressed="${current===k}">${esc(l)}</button>`).join('')}</div>`;
+}
+function dailyCardHTML(){
+  const v=V(), ds=state.ds||[]; const M=VIZ_METRICS[v.metric];
+  const modes=v.mode==='turnos'?TURNOS:['all'];
+  const rows=ds.map(r=>{ const vals={};
+    if(v.mode==='turnos') TURNOS.forEach(t=>{ vals[t]=r.bad?null:dsValue(dsSum(r.turnos,[t]),v.metric); });
+    else vals.planta=r.bad?null:dsValue(dsSum(r.turnos,TURNOS),v.metric);
+    return {x:r.fecha,label:dayLabel(r.fecha),tip:rowRangeLabel(r),vals}; });
+  const series=v.mode==='turnos'?TURNOS.map(t=>({key:t,name:t,color:VIZ_COL[t]})):[{key:'planta',name:'Planta',color:'#2A2670'}];
+  const meta=M.meta()!=null?{v:M.meta(),label:`meta ${M.pts?fmtPct0(M.meta()):''}`}:null;
+  const chart=ivLine('daily',{rows,series,fmt:M.fmt,meta,pct:M.pts,negOk:v.metric==='sobre',aria:`Evolución diaria de ${M.label.toLowerCase()} ${v.mode==='turnos'?'por turno':'de planta'}`});
+  // lectura rápida (solo planta)
+  let note='';
+  if(v.mode==='planta'){ const vals=rows.map((r,i)=>({i,val:r.vals.planta})).filter(x=>x.val!=null);
+    if(vals.length>=2){ const best=vals.reduce((a,b)=>(M.better==='up'?b.val>a.val:b.val<a.val)?b:a); const worst=vals.reduce((a,b)=>(M.better==='up'?b.val<a.val:b.val>a.val)?b:a);
+      const mv=M.meta(); const ok=mv==null?null:vals.filter(x=>M.better==='up'?x.val>=mv:x.val<=mv+1e-9).length;
+      note=`<div class="viz-note"><b>Mejor día:</b> ${esc(rows[best.i].tip)} (${M.fmt(best.val)}) · <b>Más débil:</b> ${esc(rows[worst.i].tip)} (${M.fmt(worst.val)})${ok!=null?` · <b>Dentro de meta:</b> ${ok} de ${vals.length} cortes`:''}</div>`; } }
+  return `<div class="viz-head"><div><div class="viz-title">Evolución diaria</div><div class="viz-sub">Valor de cada día, no acumulado · ${esc(M.label)}${v.mode==='turnos'?' por turno':' de planta'}</div></div>
+    <div class="viz-ctrls">${segHTML('metric',v.metric,[['efic','Eficiencia'],['scrap','Scrap'],['sobre','Sobrepeso'],['kilos','Kilos']])}${segHTML('mode',v.mode,[['planta','Planta'],['turnos','Por turno']])}</div></div>${chart}${note}`;
+}
+// ---------- mapa de calor ----------
+function divColor(t){
+  const n=[240,239,236], b=[42,120,214], r=[227,73,72]; t=Math.max(-1,Math.min(1,t)); const p=t>=0?b:r, a=Math.abs(t);
+  return `rgb(${n.map((c,i)=>Math.round(c+(p[i]-c)*a)).join(',')})`;
+}
+function heatCardHTML(){
+  const v=V(), ds=(state.ds||[]).filter(r=>!r.bad); const metric=v.hmMetric; const M=VIZ_METRICS[metric];
+  const tsel=v.hmTurno==='all'?TURNOS:[v.hmTurno];
+  const head=`<div class="viz-head"><div><div class="viz-title">Mapa de calor por máquina</div><div class="viz-sub">${esc(M.label)} de cada día vs. meta (${fmtPct0(M.meta())}) · ${v.hmTurno==='all'?'todos los turnos':esc(v.hmTurno)}</div></div>
+    <div class="viz-ctrls">${segHTML('hmMetric',metric,[['efic','Eficiencia'],['scrap','Scrap']])}${segHTML('hmTurno',v.hmTurno,[['all','Todos'],['Turno 1','T1'],['Turno 2','T2'],['Turno 3','T3']])}</div></div>`;
+  if(ds.length<1) return head+`<div class="trend-empty">Sin cortes en este mes.</div>`;
+  const span=metric==='efic'?0.20:0.10, mv=M.meta();
+  const cw=Math.max(20,Math.min(60,Math.floor(900/ds.length))), ch=22, gap=2, labW=58, grpGap=22, top=22;
+  let y=top, svg='', cells=0, tbody='';
+  Object.keys(NAVES).forEach(nave=>{
+    svg+=`<text x="0" y="${y+12}" font-size="10.5" font-weight="700" fill="var(--viz-muted)" letter-spacing=".06em">${nave.toUpperCase()}</text>`; y+=grpGap-6;
+    NAVES[nave].forEach(mq=>{
+      svg+=`<text x="${labW-8}" y="${y+ch/2+4}" font-size="11.5" font-weight="600" fill="var(--viz-secondary)" text-anchor="end">${mq}</text>`;
+      let trow=`<tr><th>${mq}</th>`;
+      ds.forEach((r,i)=>{
+        const a=dsSum(Object.fromEntries(TURNOS.map(t=>[t,(r.mq[mq]||{})[t]])),tsel);
+        const val=dsValue(a,metric); const x=labW+i*(cw+gap);
+        const fill=val==null?'var(--cell-empty)':divColor(metric==='efic'?(val-mv)/span:(mv-val)/span);
+        const tip=val==null?`${mq} · ${rowRangeLabel(r)}|sin programa|`:`${mq} · ${rowRangeLabel(r)}|${M.label}: ${fmtPct(val)}|${fmtInt(a.k)} kg producidos`;
+        svg+=`<rect class="hm-cell" x="${x}" y="${y}" width="${cw}" height="${ch}" rx="3" fill="${fill}" data-tip="${esc(tip)}"/>`;
+        trow+=`<td>${val==null?'—':fmtPct(val)}</td>`; cells++;
+      });
+      tbody+=trow+'</tr>'; y+=ch+gap;
+    });
+    y+=grpGap-gap;
+  });
+  const wTot=labW+ds.length*(cw+gap);
+  const cols=ds.map((r,i)=>`<text x="${labW+i*(cw+gap)+cw/2}" y="12" font-size="10" fill="var(--viz-muted)" text-anchor="middle">${dayNum(r.fecha)}</text>`).join('');
+  const table=`<details class="viz-table"><summary>Ver tabla de datos</summary><div class="tbl-wrap"><table><thead><tr><th>Máquina</th>${ds.map(r=>`<th>${dayNum(r.fecha)}</th>`).join('')}</tr></thead><tbody>${tbody}</tbody></table></div></details>`;
+  const lg=`<div class="hm-legend"><span>${metric==='efic'?'bajo la meta':'sobre la meta'}</span><i class="hm-bar"></i><span>${metric==='efic'?'sobre la meta':'bajo la meta'}</span><span class="hm-none"><i></i>sin programa</span></div>`;
+  return `${head}<div class="hm-scroll"><svg class="hm" viewBox="0 0 ${wTot} ${y}" width="${wTot}" height="${y}" role="img" aria-label="Mapa de calor de ${M.label.toLowerCase()} por máquina y día. Los mismos datos están en la tabla de abajo.">${cols}${svg}</svg></div>${lg}${table}`;
+}
+function spark(vals,color){
+  const pts=vals.map((v,i)=>({v,i})).filter(p=>p.v!=null); if(pts.length<2) return '';
+  const w=96,h=28,lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v)),n=vals.length-1||1;
+  const X=i=>2+(w-4)*i/n, Y=v=>3+(h-6)*(1-(v-lo)/((hi-lo)||1));
+  const d=pts.map((p,k)=>`${k?'L':'M'}${X(p.i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' '), l=pts[pts.length-1];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true"><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${X(l.i).toFixed(1)}" cy="${Y(l.v).toFixed(1)}" r="3.2" fill="${color}" stroke="var(--card)" stroke-width="1.5"/></svg>`;
+}
+// ---------- interacción global (delegada) ----------
+(function initViz(){
+  let tip=null;
+  const getTip=()=>{ if(!tip){ tip=document.createElement('div'); tip.className='viz-tip'; tip.setAttribute('role','status'); document.body.appendChild(tip); } return tip; };
+  const hide=()=>{ if(tip) tip.style.opacity='0'; document.querySelectorAll('.iv-x').forEach(l=>l.setAttribute('opacity','0')); document.querySelectorAll('.iv-dots').forEach(g=>g.replaceChildren()); };
+  const place=(cx,cy)=>{ const t=getTip(); t.style.opacity='1'; const w=t.offsetWidth, h=t.offsetHeight; let x=cx+14, y=cy-h-10; if(x+w>innerWidth-8) x=cx-w-14; if(y<8) y=cy+16; t.style.left=Math.max(8,x)+'px'; t.style.top=y+'px'; };
+  const fill=(title,rows)=>{ const t=getTip(); t.replaceChildren(); const h=document.createElement('div'); h.className='vt-title'; h.textContent=title; t.appendChild(h);
+    rows.forEach(r=>{ const d=document.createElement('div'); d.className='vt-row'; if(r.color){ const k=document.createElement('i'); k.style.background=r.color; d.appendChild(k); } const v=document.createElement('b'); v.textContent=r.text; d.appendChild(v); if(r.name){ const n=document.createElement('span'); n.textContent=r.name; d.appendChild(n); } t.appendChild(d); }); };
+  function showIv(svg, idx){
+    const reg=window.__iv[svg.dataset.iv]; if(!reg) return; const sx=reg.xs[idx];
+    const line=svg.querySelector('.iv-x'); line.setAttribute('x1',sx); line.setAttribute('x2',sx); line.setAttribute('opacity','.5');
+    const g=svg.querySelector('.iv-dots'); g.replaceChildren();
+    reg.ys[idx].forEach((y,k)=>{ if(y==null) return; const c=document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx',sx); c.setAttribute('cy',y); c.setAttribute('r',5); c.setAttribute('fill',reg.colors[k]); c.setAttribute('stroke','var(--card)'); c.setAttribute('stroke-width',2); g.appendChild(c); });
+    const it=reg.items[idx]; fill(it.title,it.rows);
+    const rc=svg.getBoundingClientRect(); const firstY=reg.ys[idx].find(y=>y!=null); place(rc.left+sx*rc.width/reg.W, rc.top+(firstY==null?reg.H/2:firstY)*rc.height/reg.H);
+    svg.dataset.idx=idx;
+  }
+  document.addEventListener('pointermove',e=>{
+    const svg=e.target.closest&&e.target.closest('svg.iv');
+    if(svg){ const reg=window.__iv[svg.dataset.iv]; if(!reg) return; const rc=svg.getBoundingClientRect(); const px=(e.clientX-rc.left)/rc.width*reg.W;
+      let best=0,bd=1e9; reg.xs.forEach((x,i)=>{ const d=Math.abs(x-px); if(d<bd){bd=d;best=i;} }); showIv(svg,best); return; }
+    const cell=e.target.closest&&e.target.closest('.hm-cell');
+    if(cell){ const [a,b,c]=cell.dataset.tip.split('|'); fill(a,[{text:b},...(c?[{text:c}]:[])]); place(e.clientX,e.clientY); return; }
+    hide();
+  });
+  document.addEventListener('pointerleave',hide,true);
+  document.addEventListener('scroll',hide,true);
+  document.addEventListener('keydown',e=>{
+    const svg=e.target.closest&&e.target.closest('svg.iv'); if(!svg) return; const reg=window.__iv[svg.dataset.iv]; if(!reg) return;
+    let i=+(svg.dataset.idx||reg.xs.length-1);
+    if(e.key==='ArrowLeft') i=Math.max(0,i-1); else if(e.key==='ArrowRight') i=Math.min(reg.xs.length-1,i+1); else if(e.key==='Escape'){ hide(); return; } else return;
+    e.preventDefault(); showIv(svg,i);
+  });
+  document.addEventListener('focusout',e=>{ if(e.target.closest&&e.target.closest('svg.iv')) hide(); });
+  let wasMob=innerWidth<640, rt=null;
+  addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ const m=innerWidth<640; if(m===wasMob) return; wasMob=m; const dc=document.getElementById('dailyCard'); if(dc) dc.innerHTML=dailyCardHTML(); },150); });
+  document.addEventListener('click',e=>{
+    const b=e.target.closest&&e.target.closest('button[data-viz]'); if(!b) return;
+    const v=V(); v[b.dataset.viz]=b.dataset.val; hide();
+    const dc=document.getElementById('dailyCard'), hc=document.getElementById('heatCard');
+    if(b.dataset.viz==='metric'||b.dataset.viz==='mode'){ if(dc) dc.innerHTML=dailyCardHTML(); } else { if(hc) hc.innerHTML=heatCardHTML(); }
+  });
+})();
+
+/* ============================================================
    ARRANQUE
    ============================================================ */
 const REAL_MACHINE_NAMES=Object.values(NAVES).flat();
@@ -2467,6 +2719,5 @@ async function boot(){
 }
 document.addEventListener('DOMContentLoaded',()=>boot().catch(error=>showBootError(error)));
 </script>
-<script src="KPI_Extrusion_App_v5_Reconstruccion_real_septiembre_2026_datos.js"></script>
 </body>
 </html>
