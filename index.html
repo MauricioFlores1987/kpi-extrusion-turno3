@@ -381,7 +381,7 @@ table.mtable tr.tot td{border-top:1.5px solid var(--accent);}
 .nave-body .pareto-foot{justify-content:center;}
 .tbar{display:inline-block;height:6px;border-radius:999px;background:var(--navy);vertical-align:middle;margin-left:8px;opacity:.85;}
 /* pareto */
-.pareto-wrap{width:100%;}
+.pareto-wrap{width:100%;max-width:780px;margin:0 auto;}
 .pareto-foot{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:10px;font-size:12px;color:var(--muted);}
 .pareto-foot .chip{background:var(--navy-tint);color:var(--ink);border-radius:999px;padding:5px 12px;font-weight:600;}
 .pareto-foot b{color:var(--accent);}
@@ -397,6 +397,40 @@ table.mtable tr.tot td{border-top:1.5px solid var(--accent);}
 .period-row{min-width:0;} .period-select{min-width:0;}
 .card:has(> table){overflow-x:auto;}
 .kpi-meta{flex-wrap:wrap;gap:2px 8px;}
+@keyframes pulseHalo{0%,100%{opacity:.12;transform:scale(.85);}50%{opacity:.95;transform:scale(1.9);}}
+@keyframes pulseDot{0%,100%{opacity:.62;}50%{opacity:1;}}
+.pulse-halo{transform-box:fill-box;transform-origin:center;animation:pulseHalo 1.9s ease-in-out infinite;}
+.pulse-dot{animation:pulseDot 1.9s ease-in-out infinite;}
+
+/* ===== impresión / PDF del informe ===== */
+.print-only{display:none;}
+@page{margin:9mm 9mm 10mm;}
+@media print{
+  html,body{background:#fff !important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;animation:none !important;transition:none !important;}
+  .tabbar,.edit-toggle,.icon-btn,.fab-row,.period-select,.theme-toggle,.header-actions,.link-btn,.toast,.editor-panel,.pub-bar,.seg{display:none !important;}
+  #app{max-width:none;padding:0;box-shadow:none;}
+  .content{padding:6px 0 0;}
+  .header{border-radius:10px;padding:9px 14px;margin:0 0 4px;box-shadow:none;}
+  .section{break-inside:auto;page-break-inside:auto;margin-bottom:8px;}
+  .section-head{margin-bottom:6px;}
+  .card,.kpi-card,.tbl-card,.kpi2,table.mtable tr{break-inside:avoid;page-break-inside:avoid;box-shadow:none !important;}
+  .kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:8px !important;margin-bottom:10px !important;}
+  .kpi-card.kpi2{padding:9px 10px 8px;}
+  .kpi2 .val{font-size:20px;} .kpi2 .spark-row{display:none;} .kpi2 .sub{margin-top:3px;font-size:10px;} .kpi-meter{margin-top:7px;} .kpi-meta{font-size:9px;}
+  .tbl-card{padding:2px 10px 4px;margin-bottom:6px;}
+  table.mtable td,table.mtable th{padding:4px 6px;font-size:10.5px;}
+  .exec-break{break-before:page;page-break-before:always;margin-top:0 !important;}
+  .exec-trends{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important;}
+  .exec-paretos{grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:8px !important;}
+  .exec-trends .legend{display:none;}
+  .exec-trends .card,.exec-paretos .card{padding:6px 8px;}
+  .exec-trends .card .t,.exec-paretos .card .t{font-size:11px;}
+  .pareto-foot{margin-top:2px;font-size:9px;gap:2px 8px;} .pareto-foot .chip{padding:2px 8px;}
+  .print-only{display:block !important;}
+  .exec-compare{display:none;}
+  .foot-note{font-size:9px;}
+}
 /* modal oscuro */
 html[data-theme="dark"] .modal{background:var(--card);color:var(--ink);}
 html[data-theme="dark"] .numpad button{background:var(--card-2);color:var(--ink);border-color:var(--line);}
@@ -659,30 +693,25 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;
 
 // ---- utilidades de dibujo ----
 let __gid=0;
-function smoothPath(pts){
-  if(pts.length<3) return pts.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const n=pts.length, dx=[], m=[], t=[];
-  for(let i=0;i<n-1;i++){ dx[i]=pts[i+1][0]-pts[i][0]; m[i]=(pts[i+1][1]-pts[i][1])/(dx[i]||1); }
-  t[0]=m[0]; t[n-1]=m[n-2];
-  for(let i=1;i<n-1;i++) t[i]=m[i-1]*m[i]<=0?0:(m[i-1]+m[i])/2;
-  for(let i=0;i<n-1;i++){ if(m[i]===0){ t[i]=0; t[i+1]=0; continue; } const a=t[i]/m[i], b=t[i+1]/m[i], q=a*a+b*b; if(q>9){ const k=3/Math.sqrt(q); t[i]=k*a*m[i]; t[i+1]=k*b*m[i]; } }
-  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for(let i=0;i<n-1;i++){ const h=dx[i]/3; d+=` C${(pts[i][0]+h).toFixed(1)},${(pts[i][1]+t[i]*h).toFixed(1)} ${(pts[i+1][0]-h).toFixed(1)},${(pts[i+1][1]-t[i+1]*h).toFixed(1)} ${pts[i+1][0].toFixed(1)},${pts[i+1][1].toFixed(1)}`; }
-  return d;
+function smoothPath(pts){ // líneas rectas entre puntos (sin suavizado, para no insinuar valores intermedios)
+  return pts.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
 }
 function isDark(){ return document.documentElement.getAttribute('data-theme')==='dark'; }
+const CAUSA_MED={PR:'Producción',MP:'Mat. prima',MT:'Matricería',MN:'Mantención',C:'Cambios',PROY:'Proyectos',P:'Partida'};
 const CAUSA_SHORT={PR:'Prod.',MP:'M. prima',MT:'Matric.',MN:'Mant.',C:'Cambios',PROY:'Proy.',P:'Partida'};
 function twoLines(label){ const w=String(label).split(' '); return w.length<2?[label,'']:[w[0],w.slice(1).join(' ')]; }
 
 // Pareto clásico: columnas ordenadas (eje izq. = minutos) + curva de % acumulado (eje der. = 0–100 %) alineados.
 function paretoChart(causas, opts={}){
   const mobile=!opts.width&&window.innerWidth<=600;
-  const w=opts.width||(mobile?360:620), h=mobile?292:340;
-  const padL=mobile?38:46, padR=mobile?40:50, padT=34, padB=mobile?50:58;
+  const w=opts.width||(mobile?360:620), h=(opts.width&&opts.width<=480)||mobile?306:340;
+  const padL0=mobile?38:46, padR=mobile?40:50, padT=34, narrow=w<=480;
+  let padB=narrow?70:58;
   const items=CAUSAS.map(c=>({...c,val:causas[c.code]||0})).sort((a,b)=>b.val-a.val);
   const total=items.reduce((s,i)=>s+i.val,0);
   if(!total) return `<div class="trend-empty">Sin minutos perdidos registrados en este periodo.</div>`;
-  const uid='pg'+(++__gid), n=items.length, plotW=w-padL-padR, plotH=h-padT-padB, slot=plotW/n, bw=Math.min(mobile?30:48,slot*.62);
+  const padL=Math.max(padL0, fmtInt(total).length*6.6+16);
+  const uid='pg'+(++__gid), n=items.length, plotW=w-padL-padR, plotH=h-padT-padB, slot=plotW/n, bw=narrow?Math.min(34,slot*.8):Math.min(58,slot*.7);
   const yP=p=>padT+plotH*(1-p), base=yP(0);
   let grid='';
   [0,.25,.5,.75,1].forEach(p=>{ const y=yP(p).toFixed(1);
@@ -703,9 +732,11 @@ function paretoChart(causas, opts={}){
     const inside=bh>=28;
     bars+=`<g class="pbar tip-el" data-tip="${esc(tip)}" opacity="${isVital?1:.55}">`+(d?`<path d="${d}" fill="url(#${uid}${i})" style="--d:${i*70}ms"/>`:'')
       +`<rect x="${(cx-slot/2).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${plotH}" fill="transparent"/>`
-      +(it.val>0?`<text x="${cx.toFixed(1)}" y="${(inside?top+16:top-6).toFixed(1)}" font-size="${mobile?10:11}" font-weight="800" text-anchor="middle" fill="${inside?'var(--on-bar)':'var(--ink)'}">${fmtInt(it.val)}</text>`:'')+`</g>`;
-    const lines=twoLines(mobile?(CAUSA_SHORT[it.code]||it.label):it.label);
-    xl+=`<text x="${cx.toFixed(1)}" y="${(base+17).toFixed(1)}" font-size="${mobile?9.5:11}" font-weight="600" text-anchor="middle" fill="var(--viz-secondary)">${esc(lines[0])}</text>`+(lines[1]?`<text x="${cx.toFixed(1)}" y="${(base+30).toFixed(1)}" font-size="${mobile?9.5:11}" font-weight="600" text-anchor="middle" fill="var(--viz-secondary)">${esc(lines[1])}</text>`:'');
+      +(it.val>0?`<text x="${cx.toFixed(1)}" y="${(inside?top+16:top-6).toFixed(1)}" font-size="${(narrow?9:11)-(fmtInt(it.val).length>=7?1.5:0)}" font-weight="800" text-anchor="middle" fill="${inside?'var(--on-bar)':'var(--ink)'}">${fmtInt(it.val)}</text>`:'')+`</g>`;
+    if(narrow){ const fs=mobile?10:10.5, lx=(cx+3).toFixed(1), ly=(base+14).toFixed(1);
+      xl+=`<text x="${lx}" y="${ly}" font-size="${fs}" font-weight="600" fill="var(--viz-secondary)" text-anchor="end" transform="rotate(-40 ${lx} ${ly})">${esc(CAUSA_MED[it.code]||it.label)}</text>`;
+    } else { const lines=twoLines(it.label);
+    xl+=`<text x="${cx.toFixed(1)}" y="${(base+17).toFixed(1)}" font-size="11" font-weight="600" text-anchor="middle" fill="var(--viz-secondary)">${esc(lines[0])}</text>`+(lines[1]?`<text x="${cx.toFixed(1)}" y="${(base+30).toFixed(1)}" font-size="11" font-weight="600" text-anchor="middle" fill="var(--viz-secondary)">${esc(lines[1])}</text>`:''); }
     if(it.val>0) dots.push([cx,yP(cum),cum]);
   });
   const curve=smoothPath(dots.map(p=>[p[0],p[1]]));
@@ -730,7 +761,7 @@ function impactoTexto(minutos, stdKg){
 function trendChart(points, opts={}){
   points=points.filter(p=>p.value!=null);
   const w=opts.width||520, h=opts.height||240, showAllLabels=opts.showAllLabels===true;
-  const dense=points.length>8, padL=48, padR=22, padT=24, padB=showAllLabels&&dense?104:34;
+  const dense=points.length>8, padL=48, padR=30, padT=24, padB=showAllLabels&&dense?104:34;
   const custom=!!opts.bands;
   const bands=opts.bands||[
     {v:0.95,color:'var(--ok)',label:'95%'},{v:0.90,color:'var(--ok)',label:'90%'},
@@ -751,17 +782,18 @@ function trendChart(points, opts={}){
   const line=smoothPath(pts), area=`${line} L${pts[pts.length-1][0].toFixed(1)},${plotBottom} L${pts[0][0].toFixed(1)},${plotBottom} Z`;
   const last=pts[pts.length-1];
   const dots=points.map((p,i)=>i===points.length-1?'':`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="${showAllLabels?4.2:3.4}" fill="var(--card)" stroke="var(--accent)" stroke-width="2"><title>${esc(p.label)} · ${(p.value*100).toFixed(1)}%</title></circle>`).join('')
-    +`<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="9" fill="var(--yellow)" opacity=".35"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="5" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.8"><title>${esc(points[points.length-1].label)} · ${(points[points.length-1].value*100).toFixed(1)}%</title></circle>`;
+    +`<circle class="pulse-halo" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="9" fill="var(--yellow)" opacity=".35"/><circle class="pulse-dot" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="5" fill="var(--yellow)" stroke="var(--ink)" stroke-width="1.8"><title>${esc(points[points.length-1].label)} · ${(points[points.length-1].value*100).toFixed(1)}%</title></circle>`;
   const labelEvery=dense?Math.ceil(points.length/6):1;
   const xLabels=points.map((p,i)=>{
     if(!showAllLabels&&dense&&i%labelEvery!==0&&i!==points.length-1) return '';
-    const px=x(i).toFixed(1), py=(h-(showAllLabels&&dense?48:12)).toFixed(1);
+    const px=x(i).toFixed(1), py=(showAllLabels&&dense?plotBottom+16:h-12).toFixed(1);
     const rotate=showAllLabels&&dense?` transform="rotate(-55 ${px} ${py})" text-anchor="end"`:` text-anchor="${i===points.length-1&&!dense?'end':i===0&&!dense?'start':'middle'}"`;
     const lb=(!showAllLabels&&/^\d{2}-\d{2}-\d{4}$/.test(p.label))?p.label.slice(0,5):p.label;
     return `<text x="${px}" y="${py}" font-size="${showAllLabels?10.5:9.5}" fill="var(--viz-muted)"${rotate}>${esc(lb)}</text>`;
   }).join('');
   const pill=(i,p)=>{ const labelY=Math.max(padT+14,Math.min(plotBottom-6,y(p.value)+(i%2?-22:26)));
-    return `<rect x="${(x(i)-24).toFixed(1)}" y="${(labelY-12).toFixed(1)}" width="48" height="18" rx="9" fill="var(--card)" stroke="var(--line)" stroke-width=".9"/><text x="${x(i).toFixed(1)}" y="${(labelY+1).toFixed(1)}" font-size="9.5" fill="var(--ink)" font-weight="800" text-anchor="middle">${(p.value*100).toFixed(1)}%</text>`; };
+    const px=Math.max(padL+26,Math.min(w-padR-4,x(i)));
+    return `<rect x="${(px-24).toFixed(1)}" y="${(labelY-12).toFixed(1)}" width="48" height="18" rx="9" fill="var(--card)" stroke="var(--line)" stroke-width=".9"/><text x="${px.toFixed(1)}" y="${(labelY+1).toFixed(1)}" font-size="9.5" fill="var(--ink)" font-weight="800" text-anchor="middle">${(p.value*100).toFixed(1)}%</text>`; };
   const valLabels=(!dense||showAllLabels)?points.map((p,i)=>pill(i,p)).join(''):pill(points.length-1,points[points.length-1]);
   const bandLines=bands.map(b=>{ const by=y(b.v);
     return `<line x1="${padL}" y1="${by.toFixed(1)}" x2="${w-padR}" y2="${by.toFixed(1)}" stroke="${b.color}" stroke-width="${b.bold?1.8:1}" stroke-dasharray="${b.bold?'0':'3,5'}" opacity="${b.bold?0.85:0.45}"/><text x="${padL-6}" y="${(by+3.5).toFixed(1)}" font-size="${showAllLabels?10:9.5}" fill="${b.color}" text-anchor="end" font-weight="${b.bold?800:600}">${b.v*100|0}%</text>`;
@@ -1108,7 +1140,7 @@ function plantaHTML(cur){
   <div class="section">
     <div class="section-head"><h2>Resumen de planta</h2></div>
     <div class="kpi-grid">
-      ${kpiCard({lbl:'Kilos producidos',val:fmtInt(ag.kilos),state:'na',sub:`STD: ${fmtInt(ag.std)} kg`,spark:sp('kilos')})}
+      ${kpiCard({lbl:'Kilos producidos',val:fmtInt(ag.kilos),state:'na',delta:agPrev?kgDelta(ag.kilos,agPrev.kilos):null,sub:`STD: ${fmtInt(ag.std)} kg`,spark:sp('kilos')})}
       ${kpiCard({lbl:'Eficiencia',val:fmtPct(ag.eficiencia),state:pillClass(ag.eficiencia),delta:agPrev?deltaChip(ag.eficiencia,agPrev.eficiencia,'up'):null,meter:effMeter(ag.eficiencia),spark:sp('efic')})}
       ${kpiCard({lbl:'Scrap',val:fmtPct(ag.scrapPct),state:pillClassInv(ag.scrapPct,META_SCRAP),delta:agPrev?deltaChip(ag.scrapPct,agPrev.scrapPct,'down'):null,meter:scrapMeter(ag.scrapPct),spark:sp('scrap')})}
       ${kpiCard({lbl:'Sobrepeso',val:fmtPct(avgSobrepeso(cur)),state:pillClassSobrepeso(avgSobrepeso(cur)),delta:agPrev?deltaChip(avgSobrepeso(cur),avgSobrepeso(prev),'sym',META_SOBREPESO):null,sub:`meta ${fmtPct0(META_SOBREPESO)} · menos es mejor`,spark:sp('sobre')})}
@@ -1123,7 +1155,7 @@ function plantaHTML(cur){
   <div class="section">
     <div class="section-head"><h2>Eficiencia por turno</h2></div>
     <div class="turno-summary">
-      ${TURNOS.map((t,ti)=>{ const e=safeEff(cur.turnos[t].kilos,cur.turnos[t].std), cl=pillClass(e); return `<div class="tcard">${ringGauge(e,semColor(cl),'T'+(ti+1))}<div class="tinfo"><div class="t"><i style="background:${VIZ_COL[t]}"></i>${t}</div><div class="e">${semSpan(fmtPct(e),cl)}</div><div class="tmeta">${esc(cur.turnos[t].jefePlanta||'')}</div></div></div>`; }).join('')}
+      ${TURNOS.map((t,ti)=>{ const e=safeEff(cur.turnos[t].kilos,cur.turnos[t].std), cl=pillClass(e); return `<div class="tcard">${ringGauge(e,null,'T'+(ti+1))}<div class="tinfo"><div class="t"><i style="background:${VIZ_COL[t]}"></i>${t}</div><div class="e">${semSpan(fmtPct(e),cl)}</div><div class="tmeta">${esc(cur.turnos[t].jefePlanta||'')}</div></div></div>`; }).join('')}
     </div>
   </div>
 
@@ -1202,6 +1234,7 @@ function deltaChip(cur,prev,mode,meta){
   const good=mode==='sym'?Math.abs(cur-(meta||0))<=Math.abs(prev-(meta||0)):(mode==='up'?d>=0:d<=0), flat=Math.abs(d)<0.0005;
   return {arrow:flat?'→':(d>0?'▲':'▼'),text:`${Math.abs(d*100).toFixed(1)} pts`,good,flat};
 }
+function kgDelta(cur,prev){ if(cur==null||prev==null) return null; const d=cur-prev; return {arrow:d>0?'▲':d<0?'▼':'→',text:fmtInt(Math.abs(d))+' kg',good:d>=0,flat:d===0}; }
 function kpiCard(o){
   const st=o.state||'na', c=o.delta;
   const chip=c?`<span class="kpi-chip ${c.flat?'flat':c.good?'ok':'bad'}" title="vs. corte anterior">${c.arrow} ${c.text}</span>`:'';
@@ -1213,9 +1246,21 @@ function kpiCard(o){
 function gapTxt(v,meta){ if(v==null) return ''; const d=(v-meta)*100; return d>=0?`+${d.toFixed(1)} pts sobre la meta`:`−${Math.abs(d).toFixed(1)} pts bajo la meta`; }
 function effMeter(v){ return v==null?null:{v,max:1,meta:META_EFICIENCIA,label:`<span>meta ${fmtPct0(META_EFICIENCIA)}</span><span>${gapTxt(v,META_EFICIENCIA,true)}</span>`}; }
 function scrapMeter(v){ return v==null?null:{v,max:Math.max(META_SCRAP*2,v*1.08),meta:META_SCRAP,label:`<span>meta ${fmtPct0(META_SCRAP)}</span><span>${gapTxt(v,META_SCRAP,false)}</span>`}; }
+function ringColorAt(t){ // t = avance del anillo (0–1): rojo → ámbar → verde al llegar a la meta (85 %)
+  const dk=isDark(), R=dk?[255,111,97]:[209,59,46], A=dk?[245,197,66]:[232,165,0], G=dk?[74,222,149]:[30,158,90];
+  const mix=(x,y,k)=>x.map((c,i)=>Math.round(c+(y[i]-c)*k)), m=META_EFICIENCIA;
+  let c; if(t<=.55*m) c=R; else if(t<=.85*m) c=mix(R,A,(t-.55*m)/(.30*m)); else if(t<m) c=mix(A,G,(t-.85*m)/(.15*m)); else c=G;
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
 function ringGauge(v,color,txt){
-  const r=26,c=2*Math.PI*r,f=Math.max(0,Math.min(1,v==null?0:v)), a=(META_EFICIENCIA*360-90)*Math.PI/180;
-  return `<svg class="ring" width="68" height="68" viewBox="0 0 68 68" aria-hidden="true"><circle cx="34" cy="34" r="${r}" fill="none" stroke="var(--track)" stroke-width="8"/><circle cx="34" cy="34" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 34 34)" style="animation:fadein .9s both"/><line x1="${(34+(r-6)*Math.cos(a)).toFixed(1)}" y1="${(34+(r-6)*Math.sin(a)).toFixed(1)}" x2="${(34+(r+6)*Math.cos(a)).toFixed(1)}" y2="${(34+(r+6)*Math.sin(a)).toFixed(1)}" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/><text x="34" y="38" text-anchor="middle" font-size="12" font-weight="800" fill="var(--viz-secondary)">${txt}</text></svg>`;
+  const r=26, f=Math.max(0,Math.min(1,v==null?0:v)), a=(META_EFICIENCIA*360-90)*Math.PI/180, N=60, cx=34, cy=34;
+  const pt=t=>{ const an=(t*360-90)*Math.PI/180; return [cx+r*Math.cos(an), cy+r*Math.sin(an)]; };
+  let segs=''; const n=Math.ceil(f*N);
+  for(let i=0;i<n;i++){ const t0=i/N, t1=Math.min(f,(i+1)/N+0.004), p0=pt(t0), p1=pt(t1);
+    segs+=`<path d="M${p0[0].toFixed(2)},${p0[1].toFixed(2)} A${r},${r} 0 0 1 ${p1[0].toFixed(2)},${p1[1].toFixed(2)}" fill="none" stroke="${ringColorAt((t0+t1)/2)}" stroke-width="8"/>`; }
+  const e=pt(f), s0=pt(0);
+  const caps=f>0?`<circle cx="${s0[0].toFixed(2)}" cy="${s0[1].toFixed(2)}" r="4" fill="${ringColorAt(0)}"/><circle cx="${e[0].toFixed(2)}" cy="${e[1].toFixed(2)}" r="4" fill="${ringColorAt(f)}"/>`:'';
+  return `<svg class="ring" width="68" height="68" viewBox="0 0 68 68" aria-hidden="true"><circle cx="34" cy="34" r="${r}" fill="none" stroke="var(--track)" stroke-width="8"/><g style="animation:fadein .9s both">${segs}${caps}</g><line x1="${(34+(r-7)*Math.cos(a)).toFixed(1)}" y1="${(34+(r-7)*Math.sin(a)).toFixed(1)}" x2="${(34+(r+7)*Math.cos(a)).toFixed(1)}" y2="${(34+(r+7)*Math.sin(a)).toFixed(1)}" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/><text x="34" y="38" text-anchor="middle" font-size="12" font-weight="800" fill="var(--viz-secondary)">${txt}</text></svg>`;
 }
 function miniBar(frac,cls){ return `<span class="mbar"><i class="${cls}" style="width:${Math.max(2,Math.min(100,frac*100)).toFixed(0)}%"></i></span>`; }
 
@@ -1308,7 +1353,7 @@ function ejecutivoHTML(cur){
     <div class="section-head"><h2>Panel ejecutivo</h2><span class="hint">${fmtPeriod(cur)} · <button class="link-btn" onclick="window.print()">imprimir / PDF</button></span></div>
 
     <div class="kpi-grid" style="margin-bottom:18px;">
-      ${kpiCard({lbl:'Kilos producidos',val:fmtInt(ag.kilos),state:'na',sub:`STD: ${fmtInt(ag.std)} kg`})}
+      ${kpiCard({lbl:'Kilos producidos',val:fmtInt(ag.kilos),state:'na',delta:agPrev?kgDelta(ag.kilos,agPrev.kilos):null,sub:`STD: ${fmtInt(ag.std)} kg`})}
       ${kpiCard({lbl:'Eficiencia',val:fmtPct(ag.eficiencia),state:pillClass(ag.eficiencia),delta:agPrev?deltaChip(ag.eficiencia,agPrev.eficiencia,'up'):null,meter:effMeter(ag.eficiencia)})}
       ${kpiCard({lbl:'Scrap',val:fmtPct(ag.scrapPct),state:pillClassInv(ag.scrapPct,META_SCRAP),delta:agPrev?deltaChip(ag.scrapPct,agPrev.scrapPct,'down'):null,meter:scrapMeter(ag.scrapPct)})}
       ${kpiCard({lbl:'Sobrepeso',val:fmtPct(avgSobrepeso(cur)),state:pillClassSobrepeso(avgSobrepeso(cur)),delta:agPrev?deltaChip(avgSobrepeso(cur),avgSobrepeso(prev),'sym',META_SOBREPESO):null,sub:`meta ${fmtPct0(META_SOBREPESO)} · menos es mejor`})}
@@ -1343,23 +1388,24 @@ function ejecutivoHTML(cur){
       ${worst.map(w=>`<tr><td style="text-align:left;font-weight:700;">${w.maquina}</td><td>${w.count}</td><td>${fmtPct(scrapPct(w.totalProd,w.totalScrap))}</td><td>${fmtInt(w.totalCausas)}</td></tr>`).join('')}
     </table></div>
 
-    <div style="font-size:12px;font-weight:700;margin:20px 0 8px;">Tendencia de eficiencia — planta y turnos</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px;">
-      <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:6px;">Planta</div>${trendChart(plantTrend,{width:520,height:270})}</div>
-      ${turnTrends.map(item=>`<div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:6px;">${item.turno}</div>${trendChart(item.points,{width:520,height:270})}</div>`).join('')}
-    </div>
-    <div style="font-size:12px;font-weight:700;margin:20px 0 8px;">Pareto de causas por turno</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px;">
-      ${TURNOS.map(turno=>`<div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:6px;">${turno}</div>${paretoChart(cur.turnos[turno].causas,{width:440})}</div>`).join('')}
-    </div>
-
-    ${agPrev ? `<div style="font-size:12px;font-weight:700;margin:16px 0 6px;">Comparación vs. periodo anterior</div>
+    ${agPrev ? `<div class="exec-compare"><div style="font-size:12px;font-weight:700;margin:14px 0 6px;">Comparación vs. periodo anterior</div>
     <div class="card">
       ${comparisonRow('Eficiencia planta', ag.eficiencia, agPrev.eficiencia, META_EFICIENCIA, true)}
       ${comparisonRow('Scrap planta', ag.scrapPct, agPrev.scrapPct, META_SCRAP, false)}
       ${comparisonRowSym('Sobrepeso planta', avgSobrepeso(cur), avgSobrepeso(prev), META_SOBREPESO)}
       ${comparisonRow('Kilos producidos', ag.kilos, agPrev.kilos, null, true, fmtInt)}
-    </div>` : ''}
+    </div></div>` : ''}
+
+    <div class="exec-break" style="font-size:12px;font-weight:700;margin:20px 0 8px;">Tendencia de eficiencia — planta y turnos</div>
+    <div class="exec-trends" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px;">
+      <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:6px;">Planta</div>${trendChart(plantTrend,{width:400,height:232})}</div>
+      ${turnTrends.map(item=>`<div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:6px;">${item.turno}</div>${trendChart(item.points,{width:400,height:232})}</div>`).join('')}
+    </div>
+    <div class="print-only" style="font-size:10px;color:var(--muted);margin-top:6px;">Zonas: verde = sobre la meta (85 %) · ámbar = desviación leve (75–85 %) · rojo = desviación considerable (&lt;75 %). El punto amarillo es el último valor.</div>
+    <div style="font-size:12px;font-weight:700;margin:20px 0 8px;">Pareto de causas por turno</div>
+    <div class="exec-paretos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px;">
+      ${TURNOS.map(turno=>`<div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:6px;">${turno}</div>${paretoChart(cur.turnos[turno].causas,{width:360})}</div>`).join('')}
+    </div>
   </div>`;
 }
 
@@ -1986,6 +2032,10 @@ function openPinChangeModal(){
 /* ============================================================
    EVENTOS
    ============================================================ */
+// Al imprimir o generar PDF siempre se usa el tema claro (ahorra tinta y se lee mejor), aunque la pantalla esté en oscuro.
+let __themeBeforePrint=null;
+window.addEventListener('beforeprint',()=>{ if(isDark()){ __themeBeforePrint='dark'; document.documentElement.setAttribute('data-theme','light'); } });
+window.addEventListener('afterprint',()=>{ if(__themeBeforePrint){ document.documentElement.setAttribute('data-theme',__themeBeforePrint); __themeBeforePrint=null; } });
 function toggleTheme(){
   const t=isDark()?'light':'dark'; document.documentElement.setAttribute('data-theme',t);
   try{ localStorage.setItem('kpiExtrusionApp_theme',t); }catch(e){}
@@ -2612,12 +2662,13 @@ function niceTicks(min,max,n){
 window.__iv = window.__iv || {};
 function ivLine(id, cfg){
   // cfg: {rows:[{x:iso,label,vals:{serieKey:valor|null}}], series:[{key,name,color}], fmt, meta:{v,label}|null, pct:bool}
-  const mob=innerWidth<640, rows=cfg.rows, W=mob?380:1000, H=mob?250:280, padL=mob?42:52, padR=cfg.series.length>1?(mob?58:84):(mob?14:24), padT=18, padB=30;
+  const mob=innerWidth<640, rows=cfg.rows, W=mob?380:1000, H=mob?250:280, padL0=mob?42:52, padR=cfg.series.length>1?(mob?58:84):(mob?14:24), padT=18, padB=30;
   const all=[]; rows.forEach(r=>cfg.series.forEach(s=>{ const v=r.vals[s.key]; if(v!=null) all.push(v); }));
   if(rows.length<2 || !all.length) return `<div class="trend-empty">Se necesitan al menos 2 cortes con datos en el mes para mostrar la evolución diaria.</div>`;
   let lo=Math.min(...all), hi=Math.max(...all); if(cfg.meta){ lo=Math.min(lo,cfg.meta.v); hi=Math.max(hi,cfg.meta.v); }
   const pad=(hi-lo||Math.abs(hi)||1)*0.12; lo-=pad; hi+=pad; if(!cfg.negOk && lo<0 && Math.min(...all)>=0) lo=0;
   const ticks=niceTicks(lo,hi,5);
+  const padL=Math.max(padL0, Math.max(...ticks.map(v=>(cfg.pct?`${(v*100).toFixed(0)}%`:fmtInt(v)).length))*6.8+18);
   const t0=Date.parse(rows[0].x), t1=Date.parse(rows[rows.length-1].x), span=(t1-t0)||1;
   const X=r=>padL+(W-padL-padR)*((Date.parse(r.x)-t0)/span), Y=v=>padT+(H-padT-padB)*(1-(v-lo)/(hi-lo));
   const fy=v=>cfg.pct?`${(v*100).toFixed(0)}%`:fmtInt(v);
@@ -2631,7 +2682,7 @@ function ivLine(id, cfg){
     const segs=[]; let cu=[]; rows.forEach(r=>{ const v=r.vals[s.key]; if(v==null){ if(cu.length) segs.push(cu); cu=[]; return; } cu.push([X(r),Y(v)]); }); if(cu.length) segs.push(cu);
     segs.forEach(sg=>{ if(sg.length<2) return; const d=smoothPath(sg);
       if(cfg.series.length===1) lines+=`<path d="${d} L${sg[sg.length-1][0].toFixed(1)},${H-padB} L${sg[0][0].toFixed(1)},${H-padB} Z" fill="url(#ivg-${id})"/>`;
-      lines+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`; });
+      lines+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`; });
     for(let i=rows.length-1;i>=0;i--){ const v=rows[i].vals[s.key]; if(v!=null){
       ends+=`<circle cx="${X(rows[i]).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4.5" fill="${s.color}" stroke="var(--card)" stroke-width="2"/>`;
       if(cfg.series.length>1) ends+=`<text x="${(X(rows[i])+10).toFixed(1)}" y="${(Y(v)+4).toFixed(1)}" font-size="${mob?10.5:11.5}" font-weight="700" fill="var(--viz-secondary)">${esc(mob?s.name.replace("Turno ","T"):s.name)}</text>`;
