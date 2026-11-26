@@ -14,7 +14,11 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.45}
 .app{max-width:440px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;border-inline:1px solid var(--line)}
 .bar{background:linear-gradient(135deg,var(--navy-dark),var(--navy));border-bottom:3px solid var(--yellow);color:#fff;padding:16px;min-height:64px}
-.bar h1{font-size:18px;font-weight:800;margin:0}.bar span{display:block;font-size:12px;font-weight:600;opacity:.8}
+.bar{text-align:center;padding:24px 16px 20px}
+.brand-mark{background:#fff;border-radius:6px;padding:7px 12px;display:inline-flex;max-width:80%}
+.brand-logo{height:44px;object-fit:contain;max-width:100%}
+.k{margin-top:14px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--yellow)}
+.bar h1{font-size:24px;font-weight:800;margin:4px 0 0}.bar .s{display:block;font-size:13px;font-weight:500;color:rgba(255,255,255,.8);margin-top:6px}
 main{padding:16px;display:flex;flex-direction:column;gap:14px}
 a.card{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 16px;box-shadow:var(--shadow);text-decoration:none;color:inherit;min-height:84px}
 a.card:hover{border-color:var(--navy)}a.card:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
@@ -27,7 +31,7 @@ footer{margin-top:auto;padding:16px;text-align:center;font-size:11px;color:var(-
 </head>
 <body>
 <div class="app">
-  <div class="bar"><h1>Panel de Planta<span>Extrusión · elige una herramienta</span></h1></div>
+  <div class="bar"><span class="brand-mark"><img class="brand-logo" src="logo.jpg" alt="Logo de la empresa" onerror="this.parentNode.style.display='none'"></span><div class="k">Planta Extrusión</div><h1>Panel de Planta</h1><span class="s">Elige una herramienta</span></div>
   <main>
     <a class="card" href="kpi.html">
       <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
